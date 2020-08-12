@@ -1,6 +1,6 @@
 """
 Module containing all the supported datasets, which are subclasses of the
-abstract class :class:`robustness.datasets.DataSet`. 
+abstract class :class:`robustness.datasets.DataSet`.
 
 Currently supported datasets:
 
@@ -33,7 +33,7 @@ from .tools.helpers import get_label_mapping
 # Datasets: (all subclassed from dataset)
 # In order:
 ## ImageNet
-## Restricted Imagenet 
+## Restricted Imagenet
 ## Other Datasets:
 ## - CIFAR
 ## - CINIC
@@ -43,14 +43,14 @@ from .tools.helpers import get_label_mapping
 class DataSet(object):
     '''
     Base class for representing a dataset. Meant to be subclassed, with
-    subclasses implementing the `get_model` function. 
+    subclasses implementing the `get_model` function.
     '''
 
     def __init__(self, ds_name, data_path, **kwargs):
         """
         Args:
             ds_name (str) : string identifier for the dataset
-            data_path (str) : path to the dataset 
+            data_path (str) : path to the dataset
             num_classes (int) : *required kwarg*, the number of classes in
                 the dataset
             mean (ch.tensor) : *required kwarg*, the mean to normalize the
@@ -65,14 +65,14 @@ class DataSet(object):
             label_mapping (dict[int,str]) : *required kwarg*, a dictionary
                 mapping from class numbers to human-interpretable class
                 names (can be :samp:`None`)
-            transform_train (torchvision.transforms) : *required kwarg*, 
+            transform_train (torchvision.transforms) : *required kwarg*,
                 transforms to apply to the training images from the
                 dataset
             transform_test (torchvision.transforms) : *required kwarg*,
                 transforms to apply to the validation images from the
                 dataset
         """
-        required_args = ['num_classes', 'mean', 'std', 
+        required_args = ['num_classes', 'mean', 'std',
                          'transform_train', 'transform_test']
         optional_args = ['custom_class', 'label_mapping', 'custom_class_args']
 
@@ -83,12 +83,12 @@ class DataSet(object):
         extra_args = set(kwargs.keys()) - set(required_args + optional_args)
         if len(extra_args) > 0:
             raise ValueError("Got unrecognized args %s" % extra_args)
-        final_kwargs = {k: kwargs.get(k, None) for k in required_args + optional_args} 
+        final_kwargs = {k: kwargs.get(k, None) for k in required_args + optional_args}
 
         self.ds_name = ds_name
         self.data_path = data_path
         self.__dict__.update(final_kwargs)
-    
+
     def override_args(self, default_args, new_args):
         '''
         Convenience method for overriding arguments. (Internal)
@@ -109,8 +109,8 @@ class DataSet(object):
         `model_utils.make_and_restore_model </source/robustness.model_utils.html>`_.
 
         Args:
-            arch (str) : name of architecture 
-            pretrained (bool): whether to try to load torchvision 
+            arch (str) : name of architecture
+            pretrained (bool): whether to try to load torchvision
                 pretrained checkpoint
 
         Returns:
@@ -120,7 +120,7 @@ class DataSet(object):
 
         raise NotImplementedError
 
-    def make_loaders(self, workers, batch_size, data_aug=True, subset=None, 
+    def make_loaders(self, workers, batch_size, data_aug=True, subset=None,
                     subset_start=0, subset_type='rand', val_batch_size=None,
                     only_val=False, shuffle_train=True, shuffle_val=True, subset_seed=None):
         '''
@@ -153,7 +153,7 @@ class DataSet(object):
             parameters given. These are standard PyTorch data loaders, and
             thus can just be used via:
 
-            >>> train_loader, val_loader = ds.make_loaders(workers=8, batch_size=128) 
+            >>> train_loader, val_loader = ds.make_loaders(workers=8, batch_size=128)
             >>> for im, lab in train_loader:
             >>>     # Do stuff...
         '''
@@ -180,7 +180,7 @@ class ImageNet(DataSet):
     '''
     ImageNet Dataset [DDS+09]_.
 
-    Requires ImageNet in ImageFolder-readable format. 
+    Requires ImageNet in ImageFolder-readable format.
     ImageNet can be downloaded from http://www.image-net.org. See
     `here <https://pytorch.org/docs/master/torchvision/datasets.html#torchvision.datasets.ImageFolder>`_
     for more information about the format.
@@ -206,7 +206,10 @@ class ImageNet(DataSet):
     def get_model(self, arch, pretrained):
         """
         """
-        return imagenet_models.__dict__[arch](num_classes=self.num_classes, 
+        if arch in imagenet_models._models.keys():
+            return imagenet_models.get_model(arch, num_classes=self.num_classes,
+                                            pretrained=pretrained)
+        return imagenet_models.__dict__[arch](num_classes=self.num_classes,
                                         pretrained=pretrained)
 
 class Places365(DataSet):
@@ -227,7 +230,7 @@ class Places365(DataSet):
             'mean': ch.tensor([0.485, 0.456, 0.406]),
             'std': ch.tensor([0.229, 0.224, 0.225]),
             'custom_class': None,
-            'label_mapping': None, 
+            'label_mapping': None,
             'transform_train': da.TRAIN_TRANSFORMS_DEFAULT(256),
             'transform_test': da.TEST_TRANSFORMS_DEFAULT(256)
         }
@@ -237,7 +240,7 @@ class Places365(DataSet):
     def get_model(self, arch, pretrained):
         """
         """
-        return imagenet_models.__dict__[arch](num_classes=self.num_classes, 
+        return imagenet_models.__dict__[arch](num_classes=self.num_classes,
                                         pretrained=pretrained)
 
 class RestrictedImageNet(DataSet):
@@ -269,7 +272,7 @@ class RestrictedImageNet(DataSet):
         ds_name = 'restricted_imagenet'
         ds_kwargs = {
             'num_classes': len(constants.RESTRICTED_IMAGNET_RANGES),
-            'mean': ch.tensor([0.4717, 0.4499, 0.3837]), 
+            'mean': ch.tensor([0.4717, 0.4499, 0.3837]),
             'std': ch.tensor([0.2600, 0.2516, 0.2575]),
             'custom_class': None,
             'label_mapping': get_label_mapping(ds_name,
@@ -290,7 +293,7 @@ class RestrictedImageNet(DataSet):
 
 class CustomImageNet(DataSet):
     '''
-    CustomImagenet Dataset 
+    CustomImagenet Dataset
 
     A subset of ImageNet with the user-specified labels
 
@@ -305,7 +308,7 @@ class CustomImageNet(DataSet):
         ds_name = 'custom_imagenet'
         ds_kwargs = {
             'num_classes': len(custom_grouping),
-            'mean': ch.tensor([0.4717, 0.4499, 0.3837]), 
+            'mean': ch.tensor([0.4717, 0.4499, 0.3837]),
             'std': ch.tensor([0.2600, 0.2516, 0.2575]),
             'custom_class': None,
             'label_mapping': get_label_mapping(ds_name,
@@ -353,7 +356,7 @@ class CIFAR(DataSet):
             'mean': ch.tensor([0.4914, 0.4822, 0.4465]),
             'std': ch.tensor([0.2023, 0.1994, 0.2010]),
             'custom_class': datasets.CIFAR10,
-            'label_mapping': None, 
+            'label_mapping': None,
             'transform_train': da.TRAIN_TRANSFORMS_DEFAULT(32),
             'transform_test': da.TEST_TRANSFORMS_DEFAULT(32)
         }
@@ -407,7 +410,7 @@ class A2B(DataSet):
 
     A general class for image-to-image translation dataset. Currently
     supported are:
-    
+
     * Horse <-> Zebra
     * Apple <-> Orange
     * Summer <-> Winter
@@ -456,14 +459,14 @@ class OpenImages(DataSet):
     Pont-Tuset J., Veit A., Belongie S., Gomes V., Gupta A., Sun C., Chechik G.,
     Cai D., Feng Z., Narayanan D., Murphy K. (2017). OpenImages: A public
     dataset for large-scale multi-label and multi-class image classification.
-    Available from https://storage.googleapis.com/openimages/web/index.html. 
+    Available from https://storage.googleapis.com/openimages/web/index.html.
     """
     def __init__(self, data_path, custom_grouping=None, **kwargs):
         """
         """
         if custom_grouping is None:
             num_classes = 601
-            label_mapping = None 
+            label_mapping = None
         else:
             num_classes = len(custom_grouping)
             label_mapping = get_label_mapping("custom_imagenet", custom_grouping)
@@ -473,7 +476,7 @@ class OpenImages(DataSet):
             'mean': ch.tensor([0.4859, 0.4131, 0.3083]),
             'std': ch.tensor([0.2919, 0.2507, 0.2273]),
             'custom_class': openimgs_helpers.OIDatasetFolder,
-            'label_mapping': label_mapping, 
+            'label_mapping': label_mapping,
             'transform_train': da.TRAIN_TRANSFORMS_IMAGENET,
             'transform_test': da.TEST_TRANSFORMS_IMAGENET
         }

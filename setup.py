@@ -22,7 +22,7 @@ setup(
   # Versions should comply with PEP440.  For a discussion on single-sourcing
   # the version across setup.py and the project code, see
   # https://packaging.python.org/en/latest/single_source_version.html
-  version='1.2.1',
+  version='1.2.1.post1',
 
   description='Tools for Robustness',
   long_description=long_description,
@@ -66,10 +66,10 @@ setup(
   # You can just specify the packages manually here if your project is
   # simple. Or you can use find_packages().
   packages=['robustness',
-	    'robustness.tools',
+        'robustness.tools',
             'robustness.cifar_models',
-	    'robustness.imagenet_models'
-	    ],
+        'robustness.imagenet_models'
+        ],
 
   include_package_data=True,
   package_data={
@@ -85,9 +85,9 @@ setup(
   #  requirements files see:
   #  https://packaging.python.org/en/latest/requirements.html
   install_requires=['tqdm', 'grpcio', 'psutil', 'gitpython','py3nvml', 'cox',
-		    'scikit-learn', 'seaborn', 'torch', 'torchvision', 'pandas',
-		    'numpy', 'scipy', 'GPUtil', 'dill', 'tensorboardX', 'tables',
-		    'matplotlib'],
+            'scikit-learn', 'seaborn', 'torch', 'torchvision', 'pandas',
+            'numpy', 'scipy', 'GPUtil', 'dill', 'tensorboardX', 'tables',
+            'matplotlib', 'pytorchcv'],
   test_suite='nose.collector',
   tests_require=['nose'],
 )

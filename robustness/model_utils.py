@@ -59,12 +59,12 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
         arch (str|nn.Module): Model architecture identifier or otherwise a
             torch.nn.Module instance with the classifier
         dataset (Dataset class [see datasets.py])
-        resume_path (str): optional path to checkpoint saved with the 
+        resume_path (str): optional path to checkpoint saved with the
             robustness library (ignored if ``arch`` is not a string)
         not a string
-        parallel (bool): if True, wrap the model in a DataParallel 
+        parallel (bool): if True, wrap the model in a DataParallel
             (defaults to False)
-        pytorch_pretrained (bool): if True, try to load a standard-trained 
+        pytorch_pretrained (bool): if True, try to load a standard-trained
             checkpoint from the torchvision library (throw error if failed)
         add_custom_forward (bool): ignored unless arch is an instance of
             nn.Module (and not a string). Normally, architectures should have a
@@ -75,7 +75,7 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
             not be passed to forward(). (Useful if you just want to train a
             model and don't care about these arguments, and are passing in an
             arch that you don't want to edit forward() for, e.g.  a pretrained model)
-    Returns: 
+    Returns:
         A tuple consisting of the model (possibly loaded with checkpoint), and the checkpoint itself
     """
     if (not isinstance(arch, str)) and add_custom_forward:
@@ -83,6 +83,8 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
 
     classifier_model = dataset.get_model(arch, pytorch_pretrained) if \
                             isinstance(arch, str) else arch
+    if add_custom_forward:
+        classifier_model = DummyModel(classifier_model)
 
     model = AttackerModel(classifier_model, dataset)
 
@@ -91,7 +93,7 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
     if resume_path and os.path.isfile(resume_path):
         print("=> loading checkpoint '{}'".format(resume_path))
         checkpoint = ch.load(resume_path, pickle_module=dill)
-        
+
         # Makes us able to load models saved with legacy versions
         state_dict_path = 'model'
         if not ('model' in checkpoint):

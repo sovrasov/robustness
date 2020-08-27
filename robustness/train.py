@@ -8,7 +8,7 @@ from cox.utils import Parameters
 from .tools import helpers
 from .tools.helpers import AverageMeter, ckpt_at_epoch, has_attr
 from .tools import constants as consts
-import dill 
+import dill
 import os
 import time
 import warnings
@@ -34,7 +34,7 @@ def check_required_args(args, eval_only=False):
     required_args_eval = ["adv_eval"]
     required_args_train = ["epochs", "out_dir", "adv_train",
         "log_iters", "lr", "momentum", "weight_decay"]
-    adv_required_args = ["attack_steps", "eps", "constraint", 
+    adv_required_args = ["attack_steps", "eps", "constraint",
             "use_best", "attack_lr", "random_restarts"]
 
     # Generic function for checking all arguments in a list
@@ -71,7 +71,7 @@ def make_optimizer_and_schedule(args, model, checkpoint, params):
         checkpoint (dict) : a loaded checkpoint saved by this library and loaded
             with `ch.load`
         params (list|None) : a list of parameters that should be updatable, all
-            other params will not update. If ``None``, update all params 
+            other params will not update. If ``None``, update all params
 
     Returns:
         An optimizer (ch.nn.optim.Optimizer) and a scheduler
@@ -104,7 +104,11 @@ def make_optimizer_and_schedule(args, model, checkpoint, params):
                 return 1.0
         schedule = lr_scheduler.LambdaLR(optimizer, lr_func)
     elif args.step_lr:
-        schedule = lr_scheduler.StepLR(optimizer, step_size=args.step_lr, gamma=args.step_lr_gamma)
+        if args.step_lr > 0:
+            schedule = lr_scheduler.StepLR(optimizer, step_size=args.step_lr, gamma=args.step_lr_gamma)
+        else:
+            print('Cosine LR schedule')
+            schedule = lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     # Fast-forward the optimizer and the scheduler if resuming
     if checkpoint:
@@ -117,7 +121,7 @@ def make_optimizer_and_schedule(args, model, checkpoint, params):
                   f' Stepping {steps_to_take} times instead...')
             for i in range(steps_to_take):
                 schedule.step()
-        
+
         if 'amp' in checkpoint and checkpoint['amp'] not in [None, 'N/A']:
             amp.load_state_dict(checkpoint['amp'])
 
@@ -133,7 +137,7 @@ def eval_model(args, model, loader, store):
     Evaluate a model for standard (and optionally adversarial) accuracy.
 
     Args:
-        args (object) : A list of arguments---should be a python object 
+        args (object) : A list of arguments---should be a python object
             implementing ``getattr()`` and ``setattr()``.
         model (AttackerModel) : model to evaluate
         loader (iterable) : a dataloader serving `(input, label)` batches from
@@ -143,21 +147,21 @@ def eval_model(args, model, loader, store):
     check_required_args(args, eval_only=True)
     start_time = time.time()
 
-    if store is not None: 
+    if store is not None:
         store.add_table(consts.LOGS_TABLE, consts.LOGS_SCHEMA)
     writer = store.tensorboard if store else None
 
     assert not hasattr(model, "module"), "model is already in DataParallel."
     model = ch.nn.DataParallel(model)
 
-    prec1, nat_loss = _model_loop(args, 'val', loader, 
+    prec1, nat_loss = _model_loop(args, 'val', loader,
                                         model, None, 0, False, writer)
 
     adv_prec1, adv_loss = float('nan'), float('nan')
-    if args.adv_eval: 
+    if args.adv_eval:
         args.eps = eval(str(args.eps)) if has_attr(args, 'eps') else None
         args.attack_lr = eval(str(args.attack_lr)) if has_attr(args, 'attack_lr') else None
-        adv_prec1, adv_loss = _model_loop(args, 'val', loader, 
+        adv_prec1, adv_loss = _model_loop(args, 'val', loader,
                                         model, None, 0, True, writer)
     log_info = {
         'epoch':0,
@@ -174,22 +178,22 @@ def eval_model(args, model, loader, store):
     if store: store[consts.LOGS_TABLE].append_row(log_info)
     return log_info
 
-def train_model(args, model, loaders, *, checkpoint=None, 
+def train_model(args, model, loaders, *, checkpoint=None,
             store=None, update_params=None, disable_no_grad=False):
     """
-    Main function for training a model. 
+    Main function for training a model.
 
     Args:
         args (object) : A python object for arguments, implementing
             ``getattr()`` and ``setattr()`` and having the following
-            attributes. See :attr:`robustness.defaults.TRAINING_ARGS` for a 
+            attributes. See :attr:`robustness.defaults.TRAINING_ARGS` for a
             list of arguments, and you can use
             :meth:`robustness.defaults.check_and_fill_args` to make sure that
             all required arguments are filled and to fill missing args with
             reasonable defaults:
 
             adv_train (int or bool, *required*)
-                if 1/True, adversarially train, otherwise if 0/False do 
+                if 1/True, adversarially train, otherwise if 0/False do
                 standard training
             epochs (int, *required*)
                 number of epochs to train for
@@ -244,9 +248,9 @@ def train_model(args, model, loaders, *, checkpoint=None,
                 well as the classifier output.
             custom_accuracy (function)
                 If given, should be a function that takes in model outputs
-                and model targets and outputs a top1 and top5 accuracy, will 
+                and model targets and outputs a top1 and top5 accuracy, will
                 displayed instead of conventional accuracies
-            regularizer (function, optional) 
+            regularizer (function, optional)
                 If given, this function of `model, input, target` returns a
                 (scalar) that is added on to the training loss without being
                 subject to adversarial attack
@@ -263,7 +267,7 @@ def train_model(args, model, loaders, *, checkpoint=None,
 
         model (AttackerModel) : the model to train.
         loaders (tuple[iterable]) : `tuple` of data loaders of the form
-            `(train_loader, val_loader)` 
+            `(train_loader, val_loader)`
         checkpoint (dict) : a loaded checkpoint previously saved by this library
             (if resuming from checkpoint)
         store (cox.Store) : a cox store for logging training progress
@@ -276,14 +280,14 @@ def train_model(args, model, loaders, *, checkpoint=None,
     # Logging setup
     writer = store.tensorboard if store else None
     prec1_key = f"{'adv' if args.adv_train else 'nat'}_prec1"
-    if store is not None: 
+    if store is not None:
         store.add_table(consts.LOGS_TABLE, consts.LOGS_SCHEMA)
-    
+
     # Reformat and read arguments
     check_required_args(args) # Argument sanity check
     for p in ['eps', 'attack_lr', 'custom_eps_multiplier']:
         setattr(args, p, eval(str(getattr(args, p))) if has_attr(args, p) else None)
-    if args.custom_eps_multiplier is not None: 
+    if args.custom_eps_multiplier is not None:
         eps_periods = args.custom_eps_multiplier
         args.custom_eps_multiplier = lambda t: np.interp([t], *zip(*eps_periods))[0]
 
@@ -306,7 +310,7 @@ def train_model(args, model, loaders, *, checkpoint=None,
 
     for epoch in range(start_epoch, args.epochs):
         # train for one epoch
-        train_prec1, train_loss = _model_loop(args, 'train', train_loader, 
+        train_prec1, train_loss = _model_loop(args, 'train', train_loader,
                 model, opt, epoch, args.adv_train, writer)
         last_epoch = (epoch == (args.epochs - 1))
 
@@ -331,9 +335,9 @@ def train_model(args, model, loaders, *, checkpoint=None,
 
         if should_log or last_epoch or should_save_ckpt:
             # log + get best
-            ctx = ch.enable_grad() if disable_no_grad else ch.no_grad() 
+            ctx = ch.enable_grad() if disable_no_grad else ch.no_grad()
             with ctx:
-                prec1, nat_loss = _model_loop(args, 'val', val_loader, model, 
+                prec1, nat_loss = _model_loop(args, 'val', val_loader, model,
                         None, epoch, False, writer)
 
             # loader, model, epoch, input_adv_exs
@@ -385,7 +389,7 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer):
         args (object) : an arguments object (see
             :meth:`~robustness.train.train_model` for list of arguments
         loop_type ('train' or 'val') : whether we are training or evaluating
-        loader (iterable) : an iterable loader of the form 
+        loader (iterable) : an iterable loader of the form
             `(image_batch, label_batch)`
         model (AttackerModel) : model to train/evaluate
         opt (ch.optim.Optimizer) : optimizer to use (ignored for evaluation)
@@ -421,7 +425,7 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer):
     has_custom_train_loss = has_attr(args, 'custom_train_loss')
     train_criterion = args.custom_train_loss if has_custom_train_loss \
             else ch.nn.CrossEntropyLoss()
-    
+
     has_custom_adv_loss = has_attr(args, 'custom_adv_loss')
     adv_criterion = args.custom_adv_loss if has_custom_adv_loss else None
 
@@ -494,7 +498,7 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer):
         # ITERATOR
         desc = ('{2} Epoch:{0} | Loss {loss.avg:.4f} | '
                 '{1}1 {top1_acc:.3f} | {1}5 {top5_acc:.3f} | '
-                'Reg term: {reg} ||'.format( epoch, prec, loop_msg, 
+                'Reg term: {reg} ||'.format( epoch, prec, loop_msg,
                 loss=losses, top1_acc=top1_acc, top5_acc=top5_acc, reg=reg_term))
 
         # USER-DEFINED HOOK
@@ -513,4 +517,3 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer):
                               epoch)
 
     return top1.avg, losses.avg
-

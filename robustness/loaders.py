@@ -42,7 +42,7 @@ def make_loaders(workers, batch_size, transforms, data_path, data_aug=True,
         transform_train = transform_test
 
     if not val_batch_size:
-        val_batch_size = batch_size
+        val_batch_size = batch_size // 4
 
     if not custom_class:
         train_path = os.path.join(data_path, 'train')
@@ -61,9 +61,9 @@ def make_loaders(workers, batch_size, transforms, data_path, data_aug=True,
     else:
         if custom_class_args is None: custom_class_args = {}
         if not only_val:
-            train_set = custom_class(root=data_path, train=True, download=True, 
+            train_set = custom_class(root=data_path, train=True, download=True,
                                 transform=transform_train, **custom_class_args)
-        test_set = custom_class(root=data_path, train=False, download=True, 
+        test_set = custom_class(root=data_path, train=False, download=True,
                                 transform=transform_test, **custom_class_args)
 
     if not only_val:
@@ -86,10 +86,10 @@ def make_loaders(workers, batch_size, transforms, data_path, data_aug=True,
         train_set = Subset(train_set, subset)
 
     if not only_val:
-        train_loader = DataLoader(train_set, batch_size=batch_size, 
+        train_loader = DataLoader(train_set, batch_size=batch_size,
             shuffle=shuffle_train, num_workers=workers, pin_memory=True)
 
-    test_loader = DataLoader(test_set, batch_size=val_batch_size, 
+    test_loader = DataLoader(test_set, batch_size=val_batch_size,
             shuffle=shuffle_val, num_workers=workers, pin_memory=True)
 
     if only_val:
@@ -137,10 +137,10 @@ class PerEpochLoader:
 
 class LambdaLoader:
     '''
-    This is a class that allows one to apply any given (fixed) 
+    This is a class that allows one to apply any given (fixed)
     transformation to the output from the loader in *real-time*.
 
-    For instance, you could use for applications such as custom 
+    For instance, you could use for applications such as custom
     data augmentation and adding image/label noise.
 
     Note that the LambdaLoader is the final transformation that
@@ -157,9 +157,9 @@ class LambdaLoader:
         '''
         Args:
             loader (PyTorch dataloader) : loader for dataset (*required*).
-            func (function) : fixed transformation to be applied to 
-                every batch in real-time (*required*). It takes in 
-                (images, labels) and returns (images, labels) of the 
+            func (function) : fixed transformation to be applied to
+                every batch in real-time (*required*). It takes in
+                (images, labels) and returns (images, labels) of the
                 same shape.
         '''
         self.data_loader = loader
@@ -187,12 +187,12 @@ class LambdaLoader:
     def __getattr__(self, attr):
         return getattr(self.data_loader, attr)
 
-def TransformedLoader(loader, func, transforms, workers=None, 
+def TransformedLoader(loader, func, transforms, workers=None,
         batch_size=None, do_tqdm=False, augment=False, fraction=1.0,
         shuffle=True):
     '''
-    This is a function that allows one to apply any given (fixed) 
-    transformation to the output from the loader *once*. 
+    This is a function that allows one to apply any given (fixed)
+    transformation to the output from the loader *once*.
 
     For instance, you could use for applications such as assigning
     random labels to all the images (before training).
@@ -205,21 +205,21 @@ def TransformedLoader(loader, func, transforms, workers=None,
 
     Args:
         loader (PyTorch dataloader) : loader for dataset
-        func (function) : fixed transformation to be applied once. It takes 
-        in (images, labels) and returns (images, labels) with the same shape 
-        in every dimension except for the first, i.e., batch dimension 
+        func (function) : fixed transformation to be applied once. It takes
+        in (images, labels) and returns (images, labels) with the same shape
+        in every dimension except for the first, i.e., batch dimension
         (which can be any length).
-        transforms (torchvision.transforms) : transforms to apply 
+        transforms (torchvision.transforms) : transforms to apply
             to the training images from the dataset (after func) (*required*).
         workers (int) : number of workers for data fetching (*required*).
         batch_size (int) : batch size for the data loaders (*required*).
         do_tqdm (bool) : if True, show a tqdm progress bar for the attack.
         augment (bool) : if True,  the output loader contains both the original
             (untransformed), and new transformed image-label pairs.
-        fraction (float): fraction of image-label pairs in the output loader 
-            which are transformed. The remainder is just original image-label 
-            pairs from loader. 
-        shuffle (bool) : whether or not the resulting loader should shuffle every 
+        fraction (float): fraction of image-label pairs in the output loader
+            which are transformed. The remainder is just original image-label
+            pairs from loader.
+        shuffle (bool) : whether or not the resulting loader should shuffle every
             epoch (defaults to True)
 
     Returns:
@@ -229,8 +229,8 @@ def TransformedLoader(loader, func, transforms, workers=None,
 
         >>> output_loader = ds.make_loaders(loader,
                                             assign_random_labels,
-                                            workers=8, 
-                                            batch_size=128) 
+                                            workers=8,
+                                            batch_size=128)
         >>> for im, lab in output_loader:
         >>>     # Do stuff...
     '''
@@ -251,5 +251,5 @@ def TransformedLoader(loader, func, transforms, workers=None,
             new_targs.append(new_targ.cpu())
 
     dataset = folder.TensorDataset(ch.cat(new_ims, 0), ch.cat(new_targs, 0), transform=transforms)
-    return ch.utils.data.DataLoader(dataset, num_workers=workers, 
+    return ch.utils.data.DataLoader(dataset, num_workers=workers,
                         batch_size=batch_size, shuffle=shuffle)

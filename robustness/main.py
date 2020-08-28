@@ -19,6 +19,7 @@ try:
     from .tools import constants, helpers
     from . import defaults, __version__
     from .defaults import check_and_fill_args
+    from .tools.am_softmax import AMSoftmaxLoss, ADVAMSoftmaxLoss
 except:
     raise ValueError("Make sure to run with python -m (see README.md)")
 
@@ -45,9 +46,11 @@ def main(args, store=None):
     val_loader = helpers.DataPrefetcher(val_loader)
     loaders = (train_loader, val_loader)
 
+
     # MAKE MODEL
     model, checkpoint = make_and_restore_model(arch=args.arch,
-            dataset=dataset, resume_path=args.resume, add_custom_forward=True)
+            dataset=dataset, resume_path=args.resume, add_custom_forward=True,
+            cosine_sim_output=args.loss == 'am-softmax')
     if 'module' in dir(model): model = model.module
 
     print(args)
@@ -55,6 +58,9 @@ def main(args, store=None):
         return eval_model(args, model, val_loader, store=store)
 
     if not args.resume_optimizer: checkpoint = None
+    if args.loss == 'am-softmax':
+        args.custom_train_loss = AMSoftmaxLoss(m=0.35, s=30.)
+        args.custom_adv_loss = ADVAMSoftmaxLoss(AMSoftmaxLoss(m=0.35, s=30., reduce=False))
     model = train_model(args, model, loaders, store=store,
                                     checkpoint=checkpoint)
     return model

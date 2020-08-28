@@ -4,6 +4,7 @@ import dill
 import os
 from .tools import helpers, constants
 from .attacker import AttackerModel
+from .tools.am_softmax import AngleSimpleLinear
 
 class FeatureExtractor(ch.nn.Module):
     '''
@@ -51,7 +52,8 @@ class DummyModel(nn.Module):
         return self.model(x)
 
 def make_and_restore_model(*_, arch, dataset, resume_path=None,
-         parallel=False, pytorch_pretrained=False, add_custom_forward=False):
+         parallel=False, pytorch_pretrained=False, add_custom_forward=False,
+         cosine_sim_output=False):
     """
     Makes a model and (optionally) restores it from a checkpoint.
 
@@ -83,6 +85,14 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
 
     classifier_model = dataset.get_model(arch, pytorch_pretrained) if \
                             isinstance(arch, str) else arch
+    if cosine_sim_output and 'mobilenetv2' in arch:
+        classifier_model.output = nn.Sequential(
+            nn.Conv2d(1280, 512, 1, 1, 0, bias=False),
+            nn.BatchNorm2d(512),
+            nn.PReLU(),
+            AngleSimpleLinear(512, 1000)
+        )
+        print(classifier_model.output)
     if add_custom_forward:
         classifier_model = DummyModel(classifier_model)
 

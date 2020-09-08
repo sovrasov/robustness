@@ -38,7 +38,6 @@ def main(args, store=None):
     # MAKE DATASET AND LOADERS
     data_path = os.path.expandvars(args.data)
     dataset = DATASETS[args.dataset](data_path)
-
     train_loader, val_loader = dataset.make_loaders(args.workers,
                     args.batch_size, data_aug=bool(args.data_aug))
 
@@ -46,10 +45,9 @@ def main(args, store=None):
     val_loader = helpers.DataPrefetcher(val_loader)
     loaders = (train_loader, val_loader)
 
-
     # MAKE MODEL
     model, checkpoint = make_and_restore_model(arch=args.arch,
-            dataset=dataset, resume_path=args.resume, add_custom_forward=True,
+            dataset=dataset, resume_path=args.resume, add_custom_forward=False,
             cosine_sim_output=args.loss == 'am-softmax')
     if 'module' in dir(model): model = model.module
 

@@ -206,9 +206,6 @@ class ImageNet(DataSet):
     def get_model(self, arch, pretrained):
         """
         """
-        if arch in imagenet_models._models.keys():
-            return imagenet_models.get_model(arch, num_classes=self.num_classes,
-                                            pretrained=pretrained)
         return imagenet_models.__dict__[arch](num_classes=self.num_classes,
                                         pretrained=pretrained)
 

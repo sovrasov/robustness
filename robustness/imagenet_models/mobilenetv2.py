@@ -515,7 +515,8 @@ class MobileNetV2(nn.Module):
 
     def forward(self, x, with_latent=False, fake_relu=False, no_relu=False):
         x = self.features[0:-2](x)
-        x_latent = self.features[-2:](fake_relu=fake_relu, no_relu=no_relu)
+        x = self.features[-2](x, fake_relu=fake_relu, no_relu=no_relu)
+        x_latent = self.features[-1](x)
         x = self.output(x_latent)
         x = x.view(x.size(0), -1)
         if with_latent or fake_relu or no_relu:
